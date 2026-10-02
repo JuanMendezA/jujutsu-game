@@ -11,7 +11,7 @@ Prototipo de un juego de Roblox estilo Jujutsu Kaizen con mecánicas tipo Type S
 - Maldiciones enemigas que persiguen, atacan, dan XP y reaparecen.
 - Nivel y XP guardados con DataStore.
 - Animaciones para el combo, Black Flash, bloqueo, esquiva, técnicas, recibir golpe y ataques de maldiciones. Son procedurales (se definen en `src/shared/Animations.luau`) y se pueden sustituir por animaciones hechas en Studio poniendo su ID en `AnimationIds`.
-- Lock on con **Alt**: fija la cámara y el personaje en el enemigo más centrado; las técnicas apuntan a él.
+- Lock on con **Alt** (en Studio usa el clic central, porque Alt activa los atajos del menú): fija la cámara y el personaje en el enemigo más centrado; las técnicas apuntan a él.
 
 ## Estructura (Rojo)
 

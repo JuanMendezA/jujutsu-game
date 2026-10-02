@@ -1,5 +1,8 @@
 -- Lock on: Alt fija la cámara y el personaje en el enemigo más cercano a la mira.
 -- Alt otra vez lo suelta. Mientras está fijado, las técnicas apuntan al objetivo.
+-- En Roblox Studio, Alt muestra los atajos del menú y se "roba" el teclado (el
+-- personaje deja de moverse); para probar en Studio usa el clic central del ratón.
+-- En el juego publicado Alt funciona normal.
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -109,7 +112,11 @@ UserInputService.InputBegan:Connect(function(input, processed)
 	if processed then
 		return
 	end
-	if input.KeyCode == Enum.KeyCode.LeftAlt or input.KeyCode == Enum.KeyCode.RightAlt then
+	if
+		input.KeyCode == Enum.KeyCode.LeftAlt
+		or input.KeyCode == Enum.KeyCode.RightAlt
+		or input.UserInputType == Enum.UserInputType.MouseButton3
+	then
 		if LockOn.Target then
 			unlock()
 		else

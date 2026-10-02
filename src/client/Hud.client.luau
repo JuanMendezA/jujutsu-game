@@ -55,7 +55,7 @@ local energyBar = bar("Energy", Color3.fromRGB(70, 110, 255), -40)
 local levelLabel = label("", UDim2.new(0, 20, 1, -88), 16)
 local techniqueLabel = label("", UDim2.new(0, 20, 1, -110), 18)
 local cooldownLabel = label("", UDim2.new(0, 300, 1, -40), 16)
-local controlsLabel = label("Clic: golpe  ·  F: bloquear  ·  Q: esquivar  ·  Z/X: técnicas  ·  Alt: fijar objetivo", UDim2.new(0, 20, 1, -2), 13)
+local controlsLabel = label("Clic: golpe  ·  F: bloquear  ·  Q: esquivar  ·  Z/X: técnicas  ·  Alt (o clic central): fijar objetivo", UDim2.new(0, 20, 1, -2), 13)
 controlsLabel.TextTransparency = 0.3
 controlsLabel.Size = UDim2.fromOffset(700, 17)
 

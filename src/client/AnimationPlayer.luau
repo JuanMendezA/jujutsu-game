@@ -20,9 +20,13 @@ local JOINT_NAMES = {
 	LeftKnee = { "LeftKnee" },
 }
 
+-- Lo que se mueve de cada articulación. Con Motor6D es su C0; con el sistema nuevo de
+-- Roblox (Avatar Joint Upgrade, AnimationConstraint) es el CFrame de su Attachment0.
+type Joint = { Target: Instance, Property: string }
+
 type Rig = {
-	Joints: { [string]: Motor6D },
-	Rest: { [Motor6D]: CFrame },
+	Joints: { [string]: Joint },
+	Rest: { [Instance]: CFrame },
 	Token: number,
 	Current: string?,
 	Tracks: { [string]: AnimationTrack },
@@ -39,14 +43,23 @@ local function getRig(character: Model): Rig
 	end
 	rig = { Joints = {}, Rest = {}, Token = 0, Current = nil, Tracks = {} }
 	for _, descendant in character:GetDescendants() do
+		local joint: Joint? = nil
 		if descendant:IsA("Motor6D") then
+			joint = { Target = descendant, Property = "C0" }
+		elseif descendant:IsA("AnimationConstraint") and descendant.Attachment0 then
+			joint = { Target = descendant.Attachment0, Property = "CFrame" }
+		end
+		if joint then
 			for role, names in JOINT_NAMES do
 				if not rig.Joints[role] and table.find(names, descendant.Name) then
-					rig.Joints[role] = descendant
-					rig.Rest[descendant] = descendant.C0
+					rig.Joints[role] = joint
+					rig.Rest[joint.Target] = (joint.Target :: any)[joint.Property]
 				end
 			end
 		end
+	end
+	if next(rig.Joints) == nil then
+		warn("[AnimationPlayer] No se encontraron articulaciones en", character:GetFullName())
 	end
 	rigs[character] = rig
 	return rig
@@ -64,8 +77,9 @@ end
 local function tweenPose(rig: Rig, pose: { [string]: { number } }?, time: number)
 	local info = TweenInfo.new(math.max(time, 0.01), Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 	for role, joint in rig.Joints do
-		if joint.Parent then
-			TweenService:Create(joint, info, { C0 = posed(rig.Rest[joint], pose and pose[role]) }):Play()
+		if joint.Target.Parent then
+			local goal = { [joint.Property] = posed(rig.Rest[joint.Target], pose and pose[role]) }
+			TweenService:Create(joint.Target, info, goal):Play()
 		end
 	end
 end
