@@ -167,9 +167,9 @@ local function onM1(player: Player, state: State)
 	if isBlackFlash then
 		damage *= Config.BlackFlash.Multiplier
 		setEnergy(player, energy(player) + Config.BlackFlash.EnergyReward)
-		Remotes.Effect:FireAllClients("BlackFlash", { Position = center, UserId = player.UserId })
+		Remotes.Effect:FireAllClients("BlackFlash", { Position = center, Direction = root.CFrame.LookVector, UserId = player.UserId })
 	else
-		Remotes.Effect:FireAllClients("Hit", { Position = center })
+		Remotes.Effect:FireAllClients("Hit", { Position = center, Direction = root.CFrame.LookVector, Finisher = isFinisher })
 	end
 
 	for _, target in targets do

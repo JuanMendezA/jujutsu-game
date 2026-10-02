@@ -1,6 +1,8 @@
 -- Reproduce las animaciones de Shared/Animations sobre cualquier personaje (R15 o R6).
 -- Corre en cada cliente: el servidor avisa "este personaje hace X" y cada cliente lo anima.
 
+local Debris = game:GetService("Debris")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
@@ -8,6 +10,7 @@ local Animations = require(ReplicatedStorage.Shared.Animations)
 
 -- Nombre de cada articulación según el tipo de cuerpo.
 local JOINT_NAMES = {
+	Root = { "Root" }, -- solo R15; en R6 el cuerpo entero se mueve con Torso (RootJoint)
 	Torso = { "Waist", "RootJoint" },
 	Neck = { "Neck" },
 	RightShoulder = { "RightShoulder", "Right Shoulder" },
@@ -74,14 +77,39 @@ local function posed(rest: CFrame, angles: { number }?): CFrame
 	return CFrame.new(rest.Position) * rotation * rest.Rotation
 end
 
-local function tweenPose(rig: Rig, pose: { [string]: { number } }?, time: number)
-	local info = TweenInfo.new(math.max(time, 0.01), Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local function tweenPose(rig: Rig, pose: { [string]: { number } }?, time: number, ease: string?)
+	local style = (ease and (Enum.EasingStyle :: any)[ease]) or Enum.EasingStyle.Quad
+	local info = TweenInfo.new(math.max(time, 0.01), style, Enum.EasingDirection.Out)
 	for role, joint in rig.Joints do
 		if joint.Target.Parent then
 			local goal = { [joint.Property] = posed(rig.Rest[joint.Target], pose and pose[role]) }
 			TweenService:Create(joint.Target, info, goal):Play()
 		end
 	end
+end
+
+-- Empuja al personaje propio hacia delante para que el golpe lleve el peso del cuerpo.
+-- Solo el dueño mueve su personaje (la física de cada jugador es de su cliente).
+local function lunge(character: Model, speed: number)
+	if character ~= Players.LocalPlayer.Character then
+		return
+	end
+	local root = character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	local attachment = root and root:FindFirstChild("RootAttachment") :: Attachment?
+	if not (root and attachment) then
+		return
+	end
+	-- LinearVelocity en una línea: empuja solo hacia delante y deja la gravedad en paz.
+	-- Dura un instante porque el Humanoid frenaría un simple cambio de velocidad.
+	local look = root.CFrame.LookVector
+	local push = Instance.new("LinearVelocity")
+	push.Attachment0 = attachment
+	push.VelocityConstraintMode = Enum.VelocityConstraintMode.Line
+	push.LineDirection = Vector3.new(look.X, 0, look.Z).Unit
+	push.LineVelocity = speed
+	push.MaxForce = 1e5
+	push.Parent = root
+	Debris:AddItem(push, 0.12)
 end
 
 local function playTrack(character: Model, rig: Rig, name: string, id: string, hold: boolean?): boolean
@@ -122,7 +150,10 @@ function AnimationPlayer.Play(character: Model, name: string)
 			if rig.Token ~= token then
 				return
 			end
-			tweenPose(rig, keyframe.Pose, keyframe.Time)
+			if keyframe.Lunge then
+				lunge(character, keyframe.Lunge)
+			end
+			tweenPose(rig, keyframe.Pose, keyframe.Time, keyframe.Ease)
 			task.wait(keyframe.Time)
 		end
 		if rig.Token == token and not animation.Hold then
