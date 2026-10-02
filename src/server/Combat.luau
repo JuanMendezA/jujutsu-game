@@ -7,6 +7,7 @@ local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Animations = require(ReplicatedStorage.Shared.Animations)
 local PlayerData = require(script.Parent.PlayerData)
 
 type State = {
@@ -19,6 +20,20 @@ type State = {
 }
 
 local Combat = {}
+
+local function playAnim(character: Instance?, name: string)
+	if character then
+		Remotes.Effect:FireAllClients("Anim", { Character = character, Name = name })
+	end
+end
+
+local function stopAnim(character: Instance?, name: string)
+	if character then
+		Remotes.Effect:FireAllClients("AnimStop", { Character = character, Name = name })
+	end
+end
+
+Combat.PlayAnim = playAnim
 
 local states: { [Player]: State } = {}
 
@@ -87,6 +102,7 @@ end
 -- Aplica daño respetando bloqueo e invulnerabilidad del objetivo si es un jugador.
 function Combat.DealDamage(attacker: Player?, target: Humanoid, amount: number)
 	local targetPlayer = Players:GetPlayerFromCharacter(target.Parent)
+	local blocking = false
 	if targetPlayer then
 		local state = states[targetPlayer]
 		if state then
@@ -94,6 +110,7 @@ function Combat.DealDamage(attacker: Player?, target: Humanoid, amount: number)
 				return
 			end
 			if state.Blocking then
+				blocking = true
 				amount *= 1 - Config.Block.DamageReduction
 			end
 		end
@@ -102,6 +119,9 @@ function Combat.DealDamage(attacker: Player?, target: Humanoid, amount: number)
 		target:SetAttribute("LastAttacker", attacker.UserId)
 	end
 	target:TakeDamage(amount)
+	if not blocking and target.Health > 0 then
+		playAnim(target.Parent, "HitReact")
+	end
 end
 
 local function push(target: Humanoid, velocity: Vector3)
@@ -135,6 +155,11 @@ local function onM1(player: Player, state: State)
 
 	local center = root.Position + root.CFrame.LookVector * (Config.M1.Range / 2)
 	local targets = humanoidsInRadius(center, Config.M1.Range / 2, character)
+	if isBlackFlash and #targets > 0 then
+		playAnim(character, "BlackFlash")
+	else
+		playAnim(character, "M1_" .. state.Combo)
+	end
 	if #targets == 0 then
 		return
 	end
@@ -163,6 +188,7 @@ local function onDodge(player: Player, state: State)
 	end
 	state.DodgeReadyAt = now + Config.Dodge.Cooldown
 	state.InvulnerableUntil = now + Config.Dodge.InvulnerableTime
+	playAnim(root.Parent, "Dodge")
 end
 
 local MoveKinds = {}
@@ -246,6 +272,7 @@ local function onTechnique(player: Player, state: State, key: unknown, aim: unkn
 	state.MoveReadyAt[key :: string] = now + move.Cooldown
 	setEnergy(player, energy(player) - move.EnergyCost)
 	player:SetAttribute("Cooldown_" .. (key :: string), workspace:GetServerTimeNow() + move.Cooldown)
+	playAnim(character, Animations.ForMoveKind[move.Kind])
 	MoveKinds[move.Kind](player, character, root, aimPosition, move)
 end
 
@@ -266,8 +293,16 @@ function Combat.Start()
 		if action == "M1" then
 			onM1(player, state)
 		elseif action == "Block" then
-			state.Blocking = a == true
-			player:SetAttribute("Blocking", state.Blocking)
+			local blocking = a == true
+			if blocking ~= state.Blocking then
+				state.Blocking = blocking
+				player:SetAttribute("Blocking", blocking)
+				if blocking then
+					playAnim(player.Character, "Block")
+				else
+					stopAnim(player.Character, "Block")
+				end
+			end
 		elseif action == "Dodge" then
 			onDodge(player, state)
 		elseif action == "Technique" then

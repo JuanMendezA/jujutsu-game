@@ -7,6 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local AnimationPlayer = require(script.Parent.AnimationPlayer)
 
 local player = Players.LocalPlayer
 
@@ -55,7 +56,11 @@ local function blackFlashText(userId: number)
 end
 
 Remotes.Effect.OnClientEvent:Connect(function(kind: string, data)
-	if kind == "Hit" then
+	if kind == "Anim" then
+		AnimationPlayer.Play(data.Character, data.Name)
+	elseif kind == "AnimStop" then
+		AnimationPlayer.Stop(data.Character, data.Name)
+	elseif kind == "Hit" then
 		burst(data.Position, Color3.new(1, 1, 1), 3, 0.15)
 	elseif kind == "BlackFlash" then
 		burst(data.Position, Color3.new(0, 0, 0), 9, 0.35)

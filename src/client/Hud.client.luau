@@ -50,11 +50,14 @@ local function label(text: string, position: UDim2, size: number): TextLabel
 	return l
 end
 
-local healthBar = bar("Health", Color3.fromRGB(200, 50, 60), -50)
-local energyBar = bar("Energy", Color3.fromRGB(70, 110, 255), -26)
-local levelLabel = label("", UDim2.new(0, 20, 1, -74), 16)
-local techniqueLabel = label("", UDim2.new(0, 20, 1, -96), 18)
-local cooldownLabel = label("", UDim2.new(0, 300, 1, -26), 16)
+local healthBar = bar("Health", Color3.fromRGB(200, 50, 60), -64)
+local energyBar = bar("Energy", Color3.fromRGB(70, 110, 255), -40)
+local levelLabel = label("", UDim2.new(0, 20, 1, -88), 16)
+local techniqueLabel = label("", UDim2.new(0, 20, 1, -110), 18)
+local cooldownLabel = label("", UDim2.new(0, 300, 1, -40), 16)
+local controlsLabel = label("Clic: golpe  ·  F: bloquear  ·  Q: esquivar  ·  Z/X: técnicas  ·  Alt: fijar objetivo", UDim2.new(0, 20, 1, -2), 13)
+controlsLabel.TextTransparency = 0.3
+controlsLabel.Size = UDim2.fromOffset(700, 17)
 
 local function moveText(key: string, techniqueId: string?): string
 	local technique = techniqueId and Config.Techniques[techniqueId]

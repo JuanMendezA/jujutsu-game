@@ -1,4 +1,5 @@
 -- Controles: clic = M1, F (mantener) = bloquear, Q = esquivar, Z / X = técnicas.
+-- El lock on (Alt) está en LockOnController.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -6,6 +7,7 @@ local UserInputService = game:GetService("UserInputService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local LockOn = require(script.Parent.LockOn)
 
 local player = Players.LocalPlayer
 local mouse = player:GetMouse()
@@ -41,9 +43,9 @@ UserInputService.InputBegan:Connect(function(input, processed)
 			Remotes.Action:FireServer("Dodge")
 		end
 	elseif input.KeyCode == Enum.KeyCode.Z then
-		Remotes.Action:FireServer("Technique", "Z", mouse.Hit.Position)
+		Remotes.Action:FireServer("Technique", "Z", LockOn.AimPosition(mouse))
 	elseif input.KeyCode == Enum.KeyCode.X then
-		Remotes.Action:FireServer("Technique", "X", mouse.Hit.Position)
+		Remotes.Action:FireServer("Technique", "X", LockOn.AimPosition(mouse))
 	end
 end)
 

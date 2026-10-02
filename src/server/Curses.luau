@@ -103,6 +103,7 @@ local function run(spawnPosition: Vector3)
 						lastAttack = now
 						local targetHumanoid = target.Parent:FindFirstChildOfClass("Humanoid")
 						if targetHumanoid then
+							Combat.PlayAnim(model, "CurseAttack")
 							Combat.DealDamage(nil, targetHumanoid, Config.Curse.Damage)
 						end
 					end
