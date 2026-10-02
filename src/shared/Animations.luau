@@ -6,13 +6,13 @@
 --
 -- Cada animación es una lista de keyframes con tres fases típicas:
 --   1. Carga (anticipación): el cuerpo se echa hacia atrás para coger fuerza.
---   2. Impacto: muy rápido (Ease = "Exponential") con todo el cuerpo hacia delante.
---   3. Congelado: se mantiene la pose un instante para que el golpe "pese".
+--   2. Impacto: muy rápido (Ease = "Quint") con todo el cuerpo hacia delante.
+--   3. Asentado: el cuerpo cede un poco tras el impacto en lugar de quedarse rígido.
+-- La función strike() arma esas tres fases a partir de la pose de carga y la de impacto.
 -- Campos de cada keyframe:
 --   Time  = segundos que tarda en llegar a la pose
 --   Ease  = estilo de suavizado (Enum.EasingStyle), por defecto "Quad"
---   Lunge = impulso hacia delante (studs/s) al empezar ese keyframe; solo se aplica al
---           personaje propio
+--   Dir   = dirección del suavizado (Enum.EasingDirection), por defecto "Out"
 --   Pose  = giros por articulación en grados {X, Y, Z}, en los ejes del torso
 -- Al final se vuelve a la pose normal en "Recover" segundos, salvo Hold = true.
 --
@@ -31,7 +31,7 @@ Animations.AnimationIds = {
 }
 
 type Pose = { [string]: { number } }
-type Keyframe = { Time: number, Pose: Pose, Ease: string?, Lunge: number? }
+type Keyframe = { Time: number, Pose: Pose, Ease: string?, Dir: string? }
 export type Animation = { Keyframes: { Keyframe }, Recover: number, Hold: boolean? }
 
 -- Pose de guardia con los puños arriba, reutilizada en las cargas.
@@ -52,8 +52,26 @@ local function merge(...: Pose): Pose
 	return result
 end
 
+-- Escala todos los giros de una pose (1 = igual, 0 = pose normal).
+local function scale(pose: Pose, k: number): Pose
+	local result = {}
+	for joint, a in pose do
+		result[joint] = { a[1] * k, a[2] * k, a[3] * k }
+	end
+	return result
+end
+
+-- Carga suave -> impacto rápido -> asentado. Los tiempos son {carga, impacto, asentado}.
+local function strike(windup: Pose, impact: Pose, times: { number }): { Keyframe }
+	return {
+		{ Time = times[1], Ease = "Sine", Dir = "InOut", Pose = windup },
+		{ Time = times[2], Ease = "Quint", Dir = "Out", Pose = impact },
+		{ Time = times[3], Ease = "Sine", Dir = "Out", Pose = scale(impact, 0.85) },
+	}
+end
+
 local RIGHT_STRAIGHT_IMPACT = {
-	Root = { -18, 0, 0 },
+	Root = { -10, 0, 0 },
 	Torso = { -5, 50, 0 },
 	Neck = { 0, -35, 0 },
 	RightShoulder = { 95, 0, -12 },
@@ -67,7 +85,7 @@ local RIGHT_STRAIGHT_IMPACT = {
 }
 
 local LEFT_STRAIGHT_IMPACT = {
-	Root = { -18, 0, 0 },
+	Root = { -10, 0, 0 },
 	Torso = { -5, -50, 0 },
 	Neck = { 0, 35, 0 },
 	LeftShoulder = { 95, 0, 12 },
@@ -93,7 +111,7 @@ local UPPERCUT_IMPACT = {
 }
 
 local ROUNDHOUSE_IMPACT = {
-	Root = { 0, 80, 30 },
+	Root = { 0, 45, 15 },
 	Torso = { 0, 20, 0 },
 	Neck = { 0, -40, 0 },
 	RightHip = { 20, 45, 95 },
@@ -106,7 +124,7 @@ local ROUNDHOUSE_IMPACT = {
 }
 
 local BLACK_FLASH_IMPACT = {
-	Root = { -28, 0, 0 },
+	Root = { -16, 0, 0 },
 	Torso = { -8, 65, 0 },
 	Neck = { -10, -45, 0 },
 	RightShoulder = { 100, 0, -5 },
@@ -120,7 +138,7 @@ local BLACK_FLASH_IMPACT = {
 }
 
 local RAY_IMPACT = {
-	Root = { -20, 0, 0 },
+	Root = { -12, 0, 0 },
 	Neck = { -5, 0, 0 },
 	RightShoulder = { 95, 0, -8 },
 	RightElbow = { 0, 0, 0 },
@@ -132,7 +150,7 @@ local RAY_IMPACT = {
 }
 
 local BLAST_IMPACT = {
-	Root = { -25, 0, 0 },
+	Root = { -14, 0, 0 },
 	Torso = { -5, 55, 0 },
 	Neck = { 0, -40, 0 },
 	RightShoulder = { 100, 0, -5 },
@@ -159,38 +177,29 @@ local PULL_IMPACT = {
 Animations.List = {
 	-- Combo M1: directo derecho, directo izquierdo, gancho ascendente y patada giratoria.
 	M1_1 = {
-		Keyframes = {
-			{ Time = 0.08, Ease = "Sine", Pose = merge(GUARD_ARMS, {
+		Keyframes = strike(merge(GUARD_ARMS, {
 				Root = { 8, 0, 0 },
 				Torso = { 0, -45, 0 },
 				Neck = { 0, 30, 0 },
 				RightShoulder = { 30, 0, 35 },
 				RightElbow = { 120, 0, 0 },
 				RightHip = { -10, 0, 0 },
-			}) },
-			{ Time = 0.05, Ease = "Exponential", Lunge = 22, Pose = RIGHT_STRAIGHT_IMPACT },
-			{ Time = 0.08, Pose = RIGHT_STRAIGHT_IMPACT },
-		},
+			}), RIGHT_STRAIGHT_IMPACT, { 0.08, 0.05, 0.08 }),
 		Recover = 0.18,
 	},
 	M1_2 = {
-		Keyframes = {
-			{ Time = 0.08, Ease = "Sine", Pose = merge(GUARD_ARMS, {
+		Keyframes = strike(merge(GUARD_ARMS, {
 				Root = { 8, 0, 0 },
 				Torso = { 0, 45, 0 },
 				Neck = { 0, -30, 0 },
 				LeftShoulder = { 30, 0, -35 },
 				LeftElbow = { 120, 0, 0 },
 				LeftHip = { -10, 0, 0 },
-			}) },
-			{ Time = 0.05, Ease = "Exponential", Lunge = 22, Pose = LEFT_STRAIGHT_IMPACT },
-			{ Time = 0.08, Pose = LEFT_STRAIGHT_IMPACT },
-		},
+			}), LEFT_STRAIGHT_IMPACT, { 0.08, 0.05, 0.08 }),
 		Recover = 0.18,
 	},
 	M1_3 = {
-		Keyframes = {
-			{ Time = 0.1, Ease = "Sine", Pose = merge(GUARD_ARMS, {
+		Keyframes = strike(merge(GUARD_ARMS, {
 				Root = { -15, 0, 0 },
 				Torso = { 0, -30, 0 },
 				RightShoulder = { -35, 0, 15 },
@@ -199,30 +208,22 @@ Animations.List = {
 				RightKnee = { -60, 0, 0 },
 				LeftHip = { 40, 0, 0 },
 				LeftKnee = { -60, 0, 0 },
-			}) },
-			{ Time = 0.06, Ease = "Exponential", Lunge = 18, Pose = UPPERCUT_IMPACT },
-			{ Time = 0.1, Pose = UPPERCUT_IMPACT },
-		},
+			}), UPPERCUT_IMPACT, { 0.1, 0.06, 0.1 }),
 		Recover = 0.22,
 	},
 	M1_4 = {
-		Keyframes = {
-			{ Time = 0.12, Ease = "Sine", Pose = merge(GUARD_ARMS, {
-				Root = { 10, -50, -10 },
+		Keyframes = strike(merge(GUARD_ARMS, {
+				Root = { 6, -30, -6 },
 				Torso = { 0, -25, 0 },
 				Neck = { 0, 50, 0 },
 				RightHip = { -35, 0, 15 },
 				RightKnee = { -70, 0, 0 },
 				LeftKnee = { -25, 0, 0 },
-			}) },
-			{ Time = 0.07, Ease = "Exponential", Lunge = 28, Pose = ROUNDHOUSE_IMPACT },
-			{ Time = 0.14, Pose = ROUNDHOUSE_IMPACT },
-		},
+			}), ROUNDHOUSE_IMPACT, { 0.12, 0.07, 0.14 }),
 		Recover = 0.3,
 	},
 	BlackFlash = {
-		Keyframes = {
-			{ Time = 0.12, Ease = "Sine", Pose = {
+		Keyframes = strike({
 				Root = { -12, 0, 0 },
 				Torso = { 5, -75, 0 },
 				Neck = { 0, 55, 0 },
@@ -234,10 +235,7 @@ Animations.List = {
 				RightKnee = { -60, 0, 0 },
 				LeftHip = { 30, 0, 0 },
 				LeftKnee = { -50, 0, 0 },
-			} },
-			{ Time = 0.05, Ease = "Exponential", Lunge = 40, Pose = BLACK_FLASH_IMPACT },
-			{ Time = 0.25, Pose = BLACK_FLASH_IMPACT },
-		},
+			}, BLACK_FLASH_IMPACT, { 0.12, 0.05, 0.25 }),
 		Recover = 0.35,
 	},
 
@@ -262,7 +260,7 @@ Animations.List = {
 	},
 	Dodge = {
 		Keyframes = {
-			{ Time = 0.06, Ease = "Exponential", Pose = {
+			{ Time = 0.06, Ease = "Quint", Pose = {
 				Root = { -45, 0, 0 },
 				Neck = { 30, 0, 0 },
 				RightShoulder = { -70, 0, 30 },
@@ -287,7 +285,7 @@ Animations.List = {
 	},
 	HitReact = {
 		Keyframes = {
-			{ Time = 0.04, Ease = "Exponential", Pose = {
+			{ Time = 0.04, Ease = "Quint", Pose = {
 				Root = { 28, 0, 0 },
 				Torso = { 10, 15, 0 },
 				Neck = { 40, 0, 0 },
@@ -313,8 +311,7 @@ Animations.List = {
 
 	-- Técnicas: carga larga y suelta explosiva.
 	Cast_Ray = { -- Sangre Perforante
-		Keyframes = {
-			{ Time = 0.2, Ease = "Sine", Pose = {
+		Keyframes = strike({
 				Root = { 12, 0, 0 },
 				Neck = { -15, 0, 0 },
 				RightShoulder = { 55, 0, -45 },
@@ -325,15 +322,11 @@ Animations.List = {
 				RightKnee = { -35, 0, 0 },
 				LeftHip = { 20, 0, 0 },
 				LeftKnee = { -35, 0, 0 },
-			} },
-			{ Time = 0.05, Ease = "Exponential", Lunge = 15, Pose = RAY_IMPACT },
-			{ Time = 0.3, Pose = RAY_IMPACT },
-		},
+			}, RAY_IMPACT, { 0.2, 0.05, 0.3 }),
 		Recover = 0.3,
 	},
 	Cast_Blast = { -- Supernova / Rojo
-		Keyframes = {
-			{ Time = 0.28, Ease = "Sine", Pose = {
+		Keyframes = strike({
 				Root = { 10, 0, 0 },
 				Torso = { 5, -80, 0 },
 				Neck = { 0, 60, 0 },
@@ -345,15 +338,11 @@ Animations.List = {
 				RightKnee = { -55, 0, 0 },
 				LeftHip = { 25, 0, 0 },
 				LeftKnee = { -40, 0, 0 },
-			} },
-			{ Time = 0.06, Ease = "Exponential", Lunge = 25, Pose = BLAST_IMPACT },
-			{ Time = 0.3, Pose = BLAST_IMPACT },
-		},
+			}, BLAST_IMPACT, { 0.28, 0.06, 0.3 }),
 		Recover = 0.35,
 	},
 	Cast_Pull = { -- Azul
-		Keyframes = {
-			{ Time = 0.25, Ease = "Sine", Pose = {
+		Keyframes = strike({
 				Root = { 15, 0, 0 },
 				Torso = { 5, -15, 0 },
 				Neck = { 30, 10, 0 },
@@ -361,10 +350,7 @@ Animations.List = {
 				RightElbow = { 10, 0, 0 },
 				LeftShoulder = { 30, 0, 40 },
 				LeftElbow = { 70, 0, 0 },
-			} },
-			{ Time = 0.06, Ease = "Exponential", Pose = PULL_IMPACT },
-			{ Time = 0.35, Pose = PULL_IMPACT },
-		},
+			}, PULL_IMPACT, { 0.25, 0.06, 0.35 }),
 		Recover = 0.3,
 	},
 
@@ -379,7 +365,7 @@ Animations.List = {
 				RightElbow = { 40, 0, 0 },
 				LeftElbow = { 40, 0, 0 },
 			} },
-			{ Time = 0.07, Ease = "Exponential", Pose = {
+			{ Time = 0.07, Ease = "Quint", Pose = {
 				Root = { -40, 0, 0 },
 				Neck = { -15, 0, 0 },
 				RightShoulder = { 45, 0, -10 },
